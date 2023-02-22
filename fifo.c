@@ -22,6 +22,7 @@
 #define LOAD_RLX(ptr) LOAD_NOP(ptr)
 #define LOAD_ACQ(ptr) LOAD_NOP(ptr)
 #define FIFO_ATOMIC_INT _Atomic int
+#define FIFO_ATOMIC_ELT _Atomic f_elt_t
 #elif defined(FIFO_RLX)
 #define STORE_RLX(ptr, val) atomic_store_explicit(ptr, val, memory_order_relaxed)
 #define LOAD_RLX(ptr) atomic_load_explicit(ptr, memory_order_relaxed)
@@ -32,6 +33,7 @@
 #define LOAD_NOP(ptr) LOAD_RLX(ptr)
 #define STORE_NOP(ptr, val) STORE_RLX(ptr, val)
 #define FIFO_ATOMIC_INT _Atomic int
+#define FIFO_ATOMIC_ELT _Atomic f_elt_t
 #elif defined(FIFO_NAT)
 #define LOAD_NOP(ptr) (*(ptr))
 #define STORE_NOP(ptr, val) ((void)((*ptr) = (val)))
@@ -42,16 +44,18 @@
 #define LOAD_SEQ(ptr) LOAD_NOP(ptr)
 #define LOAD_ACQ(ptr) LOAD_NOP(ptr)
 #define FIFO_ATOMIC_INT int
+#define FIFO_ATOMIC_ELT f_elt_t
 #else
-#define LOAD_NOP(ptr) (*(ptr))
-#define STORE_NOP(ptr, val) ((void)((*ptr) = (val)))
 #define STORE_SEQ(ptr, val) atomic_store_explicit(ptr, val, memory_order_seq_cst)
 #define LOAD_SEQ(ptr) atomic_load_explicit(ptr, memory_order_seq_cst)
 #define STORE_RLX(ptr, val) atomic_store_explicit(ptr, val, memory_order_relaxed)
 #define STORE_REL(ptr, val) atomic_store_explicit(ptr, val, memory_order_release)
 #define LOAD_RLX(ptr) atomic_load_explicit(ptr, memory_order_relaxed)
 #define LOAD_ACQ(ptr) atomic_load_explicit(ptr, memory_order_acquire)
-#define FIFO_ATOMIC_INT int
+#define LOAD_NOP(ptr) (*((int *)ptr))
+#define STORE_NOP(ptr, val) ((void)((*(int *)ptr) = (val)))
+#define FIFO_ATOMIC_INT _Atomic int
+#define FIFO_ATOMIC_ELT _Atomic f_elt_t
 #endif
 
 typedef int64_t f_elt_t;
@@ -60,7 +64,7 @@ typedef int64_t f_elt_t;
 
 struct fifo_s {
   int size;
-  f_elt_t *buffer;
+  FIFO_ATOMIC_ELT *buffer;
   FIFO_ATOMIC_INT idx_first;
   FIFO_ATOMIC_INT idx_next;
 };
@@ -82,7 +86,7 @@ fifo_p fifo_new(int size)
   fifo_p fifo = malloc(sizeof(fifo_t));
   if (fifo == NULL)
     return NULL;
-  f_elt_t *buffer = malloc(sizeof(f_elt_t)*(size+1));
+  FIFO_ATOMIC_ELT *buffer = malloc(sizeof(f_elt_t)*(size+1));
   if (buffer == NULL) {
     free(fifo);
     return NULL;
